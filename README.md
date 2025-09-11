@@ -21,3 +21,9 @@
 
 ## 📖 1. Giới thiệu hệ thống 
 Hệ thống ...dùng để .. có các chức năng: cn1,cn2
+
+## 2. Công nghệ sử dụng
+
+## 3. Một số hình ảnh của hệ thống
+## 4. Các bước cài đặt
+## 5. Liên hệ(cá nhân)
