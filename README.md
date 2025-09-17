@@ -73,6 +73,13 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
     🗄️ MySQL + JDBC (mysql-connector-j) – Lưu trữ dữ liệu.
 
     🛠️ IDE: Eclipse / IntelliJ IDEA / NetBeans.
+    ## 2. Ngôn ngữ & Công nghệ sử dụng
+
+[![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.oracle.com/java/) 
+[![Swing](https://img.shields.io/badge/Java%20Swing-007396?style=for-the-badge&logo=java&logoColor=white)](https://docs.oracle.com/javase/tutorial/uiswing/) 
+[![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/) 
+[![JDK](https://img.shields.io/badge/JDK-8+-green?style=for-the-badge&logo=java&logoColor=white)](https://www.oracle.com/java/technologies/javase/javase8-archive-downloads.html)
+
 
 ## 3. Một số hình ảnh của hệ thống
 ## 4. Các bước cài đặt
