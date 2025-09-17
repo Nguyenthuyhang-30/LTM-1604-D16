@@ -101,3 +101,7 @@ Hệ thống đồng bộ thời gian UDP được phát triển nhằm mục ti
         SELECT * FROM runs ORDER BY id DESC;
         SELECT * FROM samples WHERE run_id = <id>;
 ## 5. Liên hệ(cá nhân)
+Contact me:
+    Nguyễn Thuý Hằng CNTT 16-04
+    email: nguyenthuyhang.qc2004@gmail.com
+    
