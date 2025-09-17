@@ -20,10 +20,84 @@
 </div>
 
 ## 📖 1. Giới thiệu hệ thống 
-Hệ thống ...dùng để .. có các chức năng: cn1,cn2
+
+Hệ thống đồng bộ thời gian UDP được phát triển nhằm mục tiêu đồng bộ thời gian giữa client và server thông qua giao thức UDP.
+
+🖥️ Server:
+
+    ⏰ Lấy thời gian chuẩn từ Internet (HTTP hoặc NTP).
+
+    📡 Phản hồi yêu cầu đồng bộ từ client qua UDP.
+
+    🔍 Hỗ trợ broadcast DISCOVER để client tự động tìm server.
+
+    🕒 Hiển thị đồng hồ số và đồng hồ analog.
+
+💻 Client:
+
+    📤 Gửi yêu cầu đồng bộ tới server.
+
+    📋 Hiển thị bảng kết quả (Delay, Offset).
+
+    📈 Vẽ biểu đồ delay/offset.
+
+    🕒 Hiển thị đồng hồ số & đồng hồ analog dựa trên thời gian server.
+
+    💾 Xuất dữ liệu CSV và lưu kết quả vào MySQL để phân tích.
 
 ## 2. Công nghệ sử dụng
+    ☕ Java (JDK 8/11+) – Ngôn ngữ chính.
+
+    🎨 Java Swing + Nimbus Look&Feel – Xây dựng giao diện.
+
+    📡 UDP Socket – Giao tiếp Client–Server.
+
+    🌐 HTTP/NTP – Lấy thời gian chuẩn từ Internet.
+
+    🗄️ MySQL + JDBC (mysql-connector-j) – Lưu trữ dữ liệu.
+
+    🛠️ IDE: Eclipse / IntelliJ IDEA / NetBeans.
 
 ## 3. Một số hình ảnh của hệ thống
 ## 4. Các bước cài đặt
+🔧 Bước 1. Chuẩn bị môi trường
+
+    Cài đặt JDK 8 hoặc 11 ☕.
+
+    Cài đặt MySQL 8.x + Workbench 🗄️.
+
+    Tạo database udp_time
+🗄️ Bước 2. Tạo bảng trong MySQL
+
+📦 Bước 3. Thêm thư viện JDBC
+
+    Tải mysql-connector-j-8.x.x.jar.
+
+    Copy vào thư mục lib/ của project → Add to Build Path.
+⚙️ Bước 4. Cấu hình kết nối
+
+    Trong DbHelper.java:
+
+    public class DbHelper {
+        private static final String URL = "jdbc:mysql://localhost:3306/udp_time";
+        private static final String USER = "root";
+        private static final String PASS = "your_password";
+
+        public static Connection open() throws Exception {
+            return DriverManager.getConnection(URL, USER, PASS);
+        }
+    }
+
+▶️ Bước 5. Chạy hệ thống
+
+    Chạy TimeServerGUI.java → nhấn Start Server 🟢.
+
+    Chạy TimeClientGUI.java → nhập IP Server → nhấn Run 🚀.
+
+    Quan sát Bảng kết quả, Biểu đồ, Đồng hồ.
+
+    Kiểm tra dữ liệu trong MySQL Workbench:
+
+        SELECT * FROM runs ORDER BY id DESC;
+        SELECT * FROM samples WHERE run_id = <id>;
 ## 5. Liên hệ(cá nhân)
