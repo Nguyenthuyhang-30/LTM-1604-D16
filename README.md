@@ -21,7 +21,23 @@
 
 ## 📖 1. Giới thiệu hệ thống 
 
-Hệ thống đồng bộ thời gian UDP được phát triển nhằm mục tiêu đồng bộ thời gian giữa client và server thông qua giao thức UDP.
+Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây dựng nhằm mục tiêu đảm bảo các máy tính trong mạng nội bộ có thể duy trì sự thống nhất về thời gian. Trong các hệ thống phân tán, sự khác biệt thời gian (time drift) giữa các thiết bị là một vấn đề quan trọng, bởi nó có thể gây sai lệch trong việc:
+
+    📌 Ghi log và phân tích sự kiện (event logging).
+
+    📌 Sắp xếp thứ tự các giao dịch trong hệ thống (ordering transactions).
+
+    📌 Đồng bộ dữ liệu và truyền thông trong mạng (data synchronization & communication).
+
+    📌 Đảm bảo tính toàn vẹn và chính xác của các thuật toán phân tán (distributed algorithms).
+
+👉 Thay vì sử dụng các giao thức phức tạp như NTP (Network Time Protocol) hay các phương thức đồng bộ khác (TCP, RMI), đề tài này lựa chọn UDP vì:
+
+    ⚡ Hiệu năng cao: UDP là giao thức không kết nối, giảm overhead khi truyền gói tin.
+
+    🌍 Hỗ trợ broadcast: cho phép một client tìm server trong cùng mạng LAN nhanh chóng.
+
+    🛠️ Đơn giản, dễ triển khai: phù hợp cho các ứng dụng học tập, mô phỏng và thử nghiệm.
 
 🖥️ Server:
 
