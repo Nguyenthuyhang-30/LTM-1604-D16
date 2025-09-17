@@ -78,6 +78,21 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
 
 ## 3. Một số hình ảnh của hệ thống
+ 
+🖥️ Giao diện Client
+![Client GUI](docs/Client.png)
+
+🖥️ Giao diện Server
+![Server GUI](docs/Server.png)
+
+📊 Bảng dữ liệu trong MySQL (runs)
+![Runs Table](docs/sql_runs.png)
+
+📊 Bảng dữ liệu trong MySQL (samples)
+![Samples Table](docs/sql_samples.png)
+
+📂 Xuất file CSV
+![CSV Export](docs/udp_csv.png)
 ## 4. Các bước cài đặt
 🔧 Bước 1. Chuẩn bị môi trường
 
