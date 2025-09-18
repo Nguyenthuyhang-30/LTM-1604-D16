@@ -153,6 +153,8 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
         SELECT * FROM runs ORDER BY id DESC;
         SELECT * FROM samples WHERE run_id = <id>;
 ## 5. Liên hệ(cá nhân)
+
+
 Contact me:
     Nguyễn Thuý Hằng CNTT 16-04
 
