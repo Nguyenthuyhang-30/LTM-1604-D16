@@ -61,6 +61,18 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
     💾 Xuất dữ liệu CSV và lưu kết quả vào MySQL để phân tích.
 
+🔹 Ý nghĩa ứng dụng:
+
+    Hệ thống này mô phỏng một bài toán đồng bộ thời gian trong mạng phân tán, giúp sinh viên và nhà nghiên cứu:
+
+    Hiểu rõ hơn về cơ chế đồng bộ thời gian.
+
+    Thực hành triển khai UDP Socket trong Java.
+
+    Rèn luyện kỹ năng thiết kế giao diện trực quan và lưu trữ dữ liệu vào cơ sở dữ liệu.
+
+    Làm nền tảng để mở rộng thành các hệ thống đồng bộ thời gian phức tạp hơn (ví dụ: triển khai NTP thu gọn, đồng bộ trong hệ thống IoT, SCADA, Blockchain...).
+
 ## 2. Công nghệ sử dụng
 
 [![Java](https://img.shields.io/badge/Java-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://www.oracle.com/java/technologies/javase-downloads.html) 
