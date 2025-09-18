@@ -155,5 +155,10 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 ## 5. Liên hệ(cá nhân)
 Contact me:
     Nguyễn Thuý Hằng CNTT 16-04
+
+    Khoa: Công nghệ thông tin - Trường Đại học Đại Nam 
+
     email: nguyenthuyhang.qc2004@gmail.com
+
+
     
