@@ -154,8 +154,9 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
         SELECT * FROM samples WHERE run_id = <id>;
 ## 5. Liên hệ(cá nhân)
 
-
 Contact me:
+
+
     Nguyễn Thuý Hằng CNTT 16-04
 
     Khoa: Công nghệ thông tin - Trường Đại học Đại Nam 
