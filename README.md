@@ -58,7 +58,6 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 ## 3. Một số hình ảnh của hệ thống
  
 
-![Client GUI](docs/Client.png)
 <p align="center">
   <img src="./docs/Client.png" alt="Hình 1: 🖥️ Giao diện Client" width="600"/>
 </p>
@@ -69,23 +68,32 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
 ![Server GUI](docs/Server.png)
 <p align="center">
-  <img src="./images/client_ui.png" alt="Hình 2: 🖥️ Giao diện Server" width="600"/>
+  <img src="./docs/Server.png" alt="Hình 2: 🖥️ Giao diện Server" width="600"/>
 </p>
 
-<p align="center"><i>Hình 1: 🖥️ Giao diện Server</i></p>
+<p align="center"><i>Hình 2: 🖥️ Giao diện Server</i></p>
 
-📊 Biểu đồ offset 
-![Chart GUI](docs/bieudo.png)
+
+
+
+
+
 <p align="center">
-  <img src="./images/client_ui.png" alt="Hình 3: 📊 Biểu đồ offset " width="600"/>
+  <img src="./docs/bieudo.png" alt="Hình 3: 📊 Biểu đồ offset " width="600"/>
 </p>
 
-<p align="center"><i>📊 Biểu đồ offset </i></p>
+<p align="center"><i>Hình 3: 📊 Biểu đồ offset </i></p>
 
 
 
 📂 Xuất file CSV
-![CSV Export](docs/udp_csv.png)
+
+<p align="center">
+  <img src="./docs/udp_csv.png" alt="Hình 4: 📂 Xuất file CSV " width="600"/>
+</p>
+
+<p align="center"><i>Hình 4: 📂 Xuất file CSV </i></p>
+
 
 
 ## 4. Các bước cài đặt
