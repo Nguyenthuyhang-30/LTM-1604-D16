@@ -64,17 +64,27 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
 <p align="center"><i>Hình 1: 🖥️ Giao diện Client</i></p>
 
+- Nhập **Server IP / Port** để kết nối.  
+- Thiết lập **Samples / Interval / Timeout**.  
+- Nút **Run / Stop / Export CSV / Tìm server**.  
+- Bảng hiển thị **Delay / Offset** theo từng sample.  
+- Tab **Biểu đồ / Đồng hồ** hiển thị kết quả trực quan.  
+- Thanh trạng thái: **Local time / Server time / Offset**.  
 
 
-![Server GUI](docs/Server.png)
 <p align="center">
   <img src="./docs/Server.png" alt="Hình 2: 🖥️ Giao diện Server" width="600"/>
 </p>
 
 <p align="center"><i>Hình 2: 🖥️ Giao diện Server</i></p>
 
-
-
+- Cấu hình **Port**, chọn **Nguồn thời gian (HTTP Date / NTP)**.  
+- Nhập **NTP host** (ví dụ: time.google.com).  
+- Thiết lập chu kỳ **Refresh (ms)**.  
+- Nút **Start / Stop** để chạy hoặc dừng server.  
+- Bảng log hiển thị trạng thái **[SYNC]** theo thời gian thực.  
+- Đồng hồ đồng bộ hiển thị thời gian hiện tại.  
+- Thanh dưới cùng: hiển thị **giờ hệ thống server**.  
 
 
 
@@ -84,9 +94,12 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
 <p align="center"><i>Hình 3: 📊 Biểu đồ offset </i></p>
 
+- Hiển thị danh sách các mẫu đo **Delay** và **Offset**.  
+- Biểu đồ trực quan thể hiện sự thay đổi **Delay** (màu xanh dương) và **Offset** (màu xanh lá).  
+- Kết quả đồng bộ: số mẫu hợp lệ, độ trễ trung bình, giá trị offset (median).  
+- Thanh dưới cùng: hiển thị **giờ Local**, **giờ Server (ước lượng)** và **Offset**.  
 
 
-📂 Xuất file CSV
 
 <p align="center">
   <img src="./docs/udp_csv.png" alt="Hình 4: 📂 Xuất file CSV " width="600"/>
@@ -94,7 +107,12 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
 <p align="center"><i>Hình 4: 📂 Xuất file CSV </i></p>
 
-
+- Client hỗ trợ **xuất dữ liệu đo** ra file CSV.  
+- File gồm các cột:  
+  `index`: chỉ số mẫu đo.  
+  `delay_ms`: độ trễ đo được.  
+  `offset_ms`: sai lệch thời gian giữa Client và Server.  
+- Thuận tiện cho việc phân tích và xử lý dữ liệu sau này.  
 
 ## 4. Các bước cài đặt
 🔧 Bước 1. Chuẩn bị môi trường
