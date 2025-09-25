@@ -39,39 +39,6 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
     🛠️ Đơn giản, dễ triển khai: phù hợp cho các ứng dụng học tập, mô phỏng và thử nghiệm.
 
-🖥️ Server:
-
-    ⏰ Lấy thời gian chuẩn từ Internet (HTTP hoặc NTP).
-
-    📡 Phản hồi yêu cầu đồng bộ từ client qua UDP.
-
-    🔍 Hỗ trợ broadcast DISCOVER để client tự động tìm server.
-
-    🕒 Hiển thị đồng hồ số và đồng hồ analog.
-
-💻 Client:
-
-    📤 Gửi yêu cầu đồng bộ tới server.
-
-    📋 Hiển thị bảng kết quả (Delay, Offset).
-
-    📈 Vẽ biểu đồ delay/offset.
-
-    🕒 Hiển thị đồng hồ số & đồng hồ analog dựa trên thời gian server.
-
-    💾 Xuất dữ liệu CSV và lưu kết quả vào MySQL để phân tích.
-
-🔹 Ý nghĩa ứng dụng:
-
-    Hệ thống này mô phỏng một bài toán đồng bộ thời gian trong mạng phân tán, giúp sinh viên và nhà nghiên cứu:
-
-    Hiểu rõ hơn về cơ chế đồng bộ thời gian.
-
-    Thực hành triển khai UDP Socket trong Java.
-
-    Rèn luyện kỹ năng thiết kế giao diện trực quan và lưu trữ dữ liệu vào cơ sở dữ liệu.
-
-    Làm nền tảng để mở rộng thành các hệ thống đồng bộ thời gian phức tạp hơn (ví dụ: triển khai NTP thu gọn, đồng bộ trong hệ thống IoT, SCADA, Blockchain...).
 
 ## 2. Công nghệ sử dụng
 
@@ -90,15 +57,31 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
 ## 3. Một số hình ảnh của hệ thống
  
-🖥️ Giao diện Client
+
 ![Client GUI](docs/Client.png)
+<p align="center">
+  <img src="./docs/Client.png" alt="Hình 1: 🖥️ Giao diện Client" width="600"/>
+</p>
+
+<p align="center"><i>Hình 1: 🖥️ Giao diện Client</i></p>
 
 
-🖥️ Giao diện Server
+
 ![Server GUI](docs/Server.png)
+<p align="center">
+  <img src="./images/client_ui.png" alt="Hình 2: 🖥️ Giao diện Server" width="600"/>
+</p>
+
+<p align="center"><i>Hình 1: 🖥️ Giao diện Server</i></p>
 
 📊 Biểu đồ offset 
 ![Chart GUI](docs/bieudo.png)
+<p align="center">
+  <img src="./images/client_ui.png" alt="Hình 3: 📊 Biểu đồ offset " width="600"/>
+</p>
+
+<p align="center"><i>📊 Biểu đồ offset </i></p>
+
 
 
 📂 Xuất file CSV
