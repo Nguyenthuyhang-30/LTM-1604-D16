@@ -1,5 +1,6 @@
 package timeUDP;
 
+import javax.sound.sampled.*;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -11,17 +12,16 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.DoubleConsumer;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.List;
+import java.util.function.DoubleConsumer;
 
 public class TimeClientGUI extends JFrame {
     // ====== Palette ======
@@ -32,6 +32,10 @@ public class TimeClientGUI extends JFrame {
     private static final Color PANEL      = Color.WHITE;
     private static final Color TEXT       = new Color(0x1F2937);
     private static final Color GRID       = new Color(220, 227, 235);
+
+    // ====== Defaults khi bỏ Interval/Timeout khỏi UI
+    private static final int DEFAULT_INTERVAL_MS = 200;   // nghỉ giữa các mẫu
+    private static final int DEFAULT_TIMEOUT_MS  = 1200;  // UDP receive timeout
 
     static {
         try {
@@ -46,7 +50,7 @@ public class TimeClientGUI extends JFrame {
         } catch (Exception ignored) {}
     }
 
-    private JTextField txtIP, txtPort, txtSamples, txtInterval, txtTimeout;
+    private JTextField txtIP, txtPort, txtSamples; // (đã bỏ txtInterval/txtTimeout)
     private PillButton btnRun, btnStop, btnExport, btnDiscover;
     private JTable table;
     private DefaultTableModel model;
@@ -62,6 +66,9 @@ public class TimeClientGUI extends JFrame {
     private static final DateTimeFormatter CLOCK_FMT =
             DateTimeFormatter.ofPattern("HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
+    // ===== Báo thức
+    private final AlarmManager alarmMgr = new AlarmManager();
+
     public TimeClientGUI() {
         super("UDP Time Client");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -72,26 +79,32 @@ public class TimeClientGUI extends JFrame {
         GradientPanel header = new GradientPanel(PRIMARY, PRIMARY_DK);
         header.setLayout(new GridBagLayout());
 
-        txtIP = fieldWhite("127.0.0.1", 10);
+        txtIP = fieldWhite("192.168.1.188", 10);
         txtPort = fieldWhite("5005", 5);
         txtSamples = fieldWhite("9", 5);
-        txtInterval = fieldWhite("250", 5);
-        txtTimeout = fieldWhite("1000", 5);
 
-        btnRun = new PillButton("Run", PRIMARY);
-        btnStop = new PillButton("Stop", new Color(0xEF4444));
+        btnRun = new PillButton("Đồng bộ", PRIMARY);
+        btnStop = new PillButton("Dừng", new Color(0xEF4444));
         btnStop.setEnabled(false);
-        btnExport = new PillButton("Export CSV", new Color(0x059669));
+        btnExport = new PillButton("Xuất CSV", new Color(0x059669));
         btnDiscover = new PillButton("Tìm server", new Color(0x0EA5E9));
+
+        // Nút báo thức & hẹn giờ (popup nhanh)
+        PillButton btnAddAlarm  = new PillButton("Báo thức", new Color(0xF59E0B));
+        PillButton btnCountdown = new PillButton("Hẹn giờ",  new Color(0x10B981));
+
+        // Nút mở form chi tiết
+        PillButton btnAlarmManager = new PillButton("Quản lý báo thức", new Color(0x2563EB));
+        PillButton btnStopwatch    = new PillButton("Bấm giờ",          new Color(0xEC4899));
 
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 8));
         controls.setOpaque(false);
         controls.add(lw("Server IP:")); controls.add(txtIP);
-        controls.add(lw("Port:")); controls.add(txtPort);
-        controls.add(lw("Samples:")); controls.add(txtSamples);
-        controls.add(lw("Interval(ms):")); controls.add(txtInterval);
-        controls.add(lw("Timeout(ms):")); controls.add(txtTimeout);
+        controls.add(lw("Port:"));       controls.add(txtPort);
+        controls.add(lw("Samples:"));    controls.add(txtSamples);
         controls.add(btnRun); controls.add(btnStop); controls.add(btnExport); controls.add(btnDiscover);
+        controls.add(btnAddAlarm); controls.add(btnCountdown);
+        controls.add(btnAlarmManager); controls.add(btnStopwatch);
 
         GridBagConstraints gc = new GridBagConstraints();
         gc.gridx=0; gc.gridy=0; gc.insets = new Insets(8,16,8,16);
@@ -116,12 +129,9 @@ public class TimeClientGUI extends JFrame {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
         table = new JTable(model) {
-            // zebra-stripe
             @Override public Component prepareRenderer(javax.swing.table.TableCellRenderer r, int row, int col) {
                 Component c = super.prepareRenderer(r, row, col);
-                if (!isRowSelected(row)) {
-                    c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(0xF7F9FC));
-                }
+                if (!isRowSelected(row)) c.setBackground(row % 2 == 0 ? Color.WHITE : new Color(0xF7F9FC));
                 return c;
             }
         };
@@ -157,11 +167,19 @@ public class TimeClientGUI extends JFrame {
         add(status, BorderLayout.SOUTH);
         add(mainSplit, BorderLayout.CENTER);
 
-        // Actions
+        // ===== Actions
         btnRun.addActionListener(e -> startRun());
         btnStop.addActionListener(e -> stopRun());
         btnExport.addActionListener(e -> exportCSV());
         btnDiscover.addActionListener(e -> doDiscover());
+
+        // popup nhanh (giữ nguyên bố cục cũ)
+        btnAddAlarm.addActionListener(e -> promptAddAlarm());
+        btnCountdown.addActionListener(e -> promptCountdown());
+
+        // form chi tiết
+        btnAlarmManager.addActionListener(e -> new AlarmFrame().setVisible(true));
+        btnStopwatch.addActionListener(e -> new StopwatchFrame().setVisible(true));
 
         addComponentListener(new ComponentAdapter() {
             @Override public void componentResized(ComponentEvent e) { plotPanel.repaint(); analogClockPanel.repaint(); }
@@ -174,7 +192,12 @@ public class TimeClientGUI extends JFrame {
     }
 
     // ===== Helpers UI
-    private static JLabel lw(String s) { JLabel l=new JLabel(s); l.setForeground(new Color(255,255,255,220)); l.setFont(l.getFont().deriveFont(Font.BOLD,13f)); return l; }
+    private static JLabel lw(String s) {
+        JLabel l=new JLabel(s);
+        l.setForeground(new Color(255,255,255,220));
+        l.setFont(l.getFont().deriveFont(Font.BOLD,13f));
+        return l;
+    }
     private static JTextField fieldWhite(String text, int cols) {
         JTextField f = new JTextField(text, cols);
         f.setBorder(BorderFactory.createCompoundBorder(
@@ -205,8 +228,11 @@ public class TimeClientGUI extends JFrame {
     }
     static class GradientPanel extends JPanel {
         private final Color c1,c2; GradientPanel(Color a, Color b){ c1=a; c2=b; }
-        @Override protected void paintComponent(Graphics g){ Graphics2D g2=(Graphics2D)g.create(); int w=getWidth(),h=getHeight();
-            GradientPaint gp=new GradientPaint(0,0,c1, 0,h,c2); g2.setPaint(gp); g2.fillRect(0,0,w,h); g2.dispose(); }
+        @Override protected void paintComponent(Graphics g){
+            Graphics2D g2=(Graphics2D)g.create(); int w=getWidth(),h=getHeight();
+            GradientPaint gp=new GradientPaint(0,0,c1, 0,h,c2); g2.setPaint(gp);
+            g2.fillRect(0,0,w,h); g2.dispose();
+        }
     }
     static class PillButton extends JButton {
         private final Color base;
@@ -220,6 +246,26 @@ public class TimeClientGUI extends JFrame {
             g2.setColor(fill); g2.fillRoundRect(0,0,w,h,arc,arc); super.paintComponent(g); g2.dispose();
         }
         @Override public void updateUI(){ super.updateUI(); setContentAreaFilled(false); setBorderPainted(false); }
+    }
+
+    // ====== Tiện ích giờ server ước lượng
+    private long serverNowMs() {
+        long local = System.currentTimeMillis();
+        Double off = lastMedianOffsetMs;
+        return local + (off == null ? 0L : off.longValue());
+    }
+
+    // Hiển thị hộp thoại kèm chuông "reng reng reng" cho tới khi bấm OK
+    private void showRingingAlert(String title, String message) {
+        Ringer r = new Ringer();
+        Thread t = new Thread(r, "AlarmRinger");
+        t.setDaemon(true);
+        t.start();
+        try {
+            JOptionPane.showMessageDialog(this, message, title, JOptionPane.INFORMATION_MESSAGE);
+        } finally {
+            r.stop(); // tắt chuông khi đóng hộp thoại
+        }
     }
 
     // ===== Đồng hồ số + analog
@@ -242,19 +288,22 @@ public class TimeClientGUI extends JFrame {
     // ===== Logic
     private void startRun() {
         if (worker != null && !worker.isDone()) return;
+
         String ip = txtIP.getText().trim();
-        int port, samples, interval, timeout;
+        int port, samples;
         try {
-            port = Integer.parseInt(txtPort.getText().trim());
+            port    = Integer.parseInt(txtPort.getText().trim());
             samples = Integer.parseInt(txtSamples.getText().trim());
-            interval = Integer.parseInt(txtInterval.getText().trim());
-            timeout = Integer.parseInt(txtTimeout.getText().trim());
         } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Tham số không hợp lệ"); return; }
+
+        // giá trị mặc định khi không còn ô nhập
+        int interval = DEFAULT_INTERVAL_MS;
+        int timeout  = DEFAULT_TIMEOUT_MS;
 
         model.setRowCount(0); resultArea.setText(""); plotPanel.clearData();
         lastMedianOffsetMs = null;
         lblOffsetDisplay.setText("Offset(median): -- ms");
-        analogClockPanel.setPaused(true); // bắt đầu thì dừng đồng hồ tới khi có offset
+        analogClockPanel.setPaused(true);
         updateClocks();
 
         worker = new ClientWorker(
@@ -267,14 +316,14 @@ public class TimeClientGUI extends JFrame {
     private void stopRun() {
         if (worker != null) worker.shutdown();
         btnRun.setEnabled(true); btnStop.setEnabled(false);
-        analogClockPanel.setPaused(true); // dừng khi stop
+        analogClockPanel.setPaused(true);
         appendLog("Đã dừng.");
     }
     private void setMedianOffset(double offsetMs) {
         SwingUtilities.invokeLater(() -> {
             lastMedianOffsetMs = offsetMs;
             lblOffsetDisplay.setText("Offset(median): " + fmtMs(offsetMs) + " ms");
-            analogClockPanel.setPaused(false); // có offset thì chạy
+            analogClockPanel.setPaused(false);
             updateClocks();
         });
     }
@@ -326,20 +375,18 @@ public class TimeClientGUI extends JFrame {
     }
 
     /// ===== Worker
- // ===== Worker
     private static class ClientWorker extends SwingWorker<Void, Void> {
-        private final String ip; 
+        private final String ip;
         private final int port, samples, interval, timeout;
         private final java.util.function.Consumer<String> resultPrinter;
         private final TriConsumer<Integer, Long, Double> rowAppender;
         private final java.util.function.Consumer<String> logger;
-        private final PlotPointConsumer plotConsumer; 
+        private final PlotPointConsumer plotConsumer;
         private final DoubleConsumer offsetConsumer;
         private volatile boolean running = true;
-        private final List<Double> offsets = new ArrayList<>(); 
+        private final List<Double> offsets = new ArrayList<>();
         private final List<Long> delays = new ArrayList<>();
 
-        // JDBC
         private Connection cn;
         private PreparedStatement psInsertRun;
         private PreparedStatement psInsertSample;
@@ -357,13 +404,12 @@ public class TimeClientGUI extends JFrame {
             this.plotConsumer=plotConsumer; this.offsetConsumer=offsetConsumer;
 
             try {
-                cn = DbHelper.open();                // <-- đảm bảo trả về Connection tới schema udp_time
+                cn = DbHelper.open(); // giữ nguyên như dự án của bạn
                 cn.setAutoCommit(false);
 
-                // 1) Insert 1 dòng vào runs (để lấy runId). started_at có DEFAULT CURRENT_TIMESTAMP nên không cần set.
                 psInsertRun = cn.prepareStatement(
-                    "INSERT INTO runs(server_ip, port, samples, interval_ms, timeout_ms) VALUES(?,?,?,?,?)",
-                    Statement.RETURN_GENERATED_KEYS
+                        "INSERT INTO runs(server_ip, port, samples, interval_ms, timeout_ms) VALUES(?,?,?,?,?)",
+                        Statement.RETURN_GENERATED_KEYS
                 );
                 psInsertRun.setString(1, ip);
                 psInsertRun.setInt(2, port);
@@ -376,14 +422,12 @@ public class TimeClientGUI extends JFrame {
                 }
                 logger.accept("[DB] runs.id = " + runId);
 
-                // 2) Chuẩn bị statement insert samples (batch)
                 psInsertSample = cn.prepareStatement(
-                    "INSERT INTO samples(run_id, sample_index, delay_ms, offset_ms, created_at) VALUES(?,?,?,?,NOW())"
+                        "INSERT INTO samples(run_id, sample_index, delay_ms, offset_ms, created_at) VALUES(?,?,?,?,NOW())"
                 );
 
-                // 3) Chuẩn bị update run khi kết thúc (đúng tên cột của bạn: median_offset)
                 psUpdateRun = cn.prepareStatement(
-                    "UPDATE runs SET finished_at = NOW(), median_offset = ?, avg_delay = ? WHERE id = ?"
+                        "UPDATE runs SET finished_at = NOW(), median_offset = ?, avg_delay = ? WHERE id = ?"
                 );
 
             } catch (Exception ex) {
@@ -395,7 +439,7 @@ public class TimeClientGUI extends JFrame {
 
         @Override protected Void doInBackground() {
             try (DatagramSocket socket = new DatagramSocket()) {
-                socket.setSoTimeout(timeout); 
+                socket.setSoTimeout(timeout);
                 InetAddress serverAddr = InetAddress.getByName(ip);
 
                 for (int i=1; i<=samples && running; i++) {
@@ -403,26 +447,25 @@ public class TimeClientGUI extends JFrame {
                         long t0 = nowMs();
                         byte[] out = ("REQ " + t0).getBytes(StandardCharsets.UTF_8);
                         socket.send(new DatagramPacket(out, out.length, serverAddr, port));
-                        byte[] buf = new byte[1024]; 
+                        byte[] buf = new byte[1024];
                         DatagramPacket resp = new DatagramPacket(buf, buf.length);
-                        socket.receive(resp); 
+                        socket.receive(resp);
                         long t3 = nowMs();
 
                         String data = new String(resp.getData(), 0, resp.getLength(), StandardCharsets.UTF_8).trim();
                         String[] parts = data.split("\\s+");
                         if (parts.length==3 && "RESP".equals(parts[0])) {
-                            long t1 = Long.parseLong(parts[1]); 
+                            long t1 = Long.parseLong(parts[1]);
                             long t2 = Long.parseLong(parts[2]);
                             long delay = (t3 - t0) - (t2 - t1);
                             double offset = ((t1 - t0) + (t2 - t3)) / 2.0;
 
-                            delays.add(delay); 
+                            delays.add(delay);
                             offsets.add(offset);
 
-                            rowAppender.accept(i, delay, offset); 
+                            rowAppender.accept(i, delay, offset);
                             plotConsumer.accept(i, delay, offset);
 
-                            // Ghi DB (nếu đã mở kết nối & có runId)
                             if (psInsertSample != null && runId > 0) {
                                 psInsertSample.setLong(1, runId);
                                 psInsertSample.setInt(2, i);
@@ -433,22 +476,19 @@ public class TimeClientGUI extends JFrame {
                         } else {
                             logger.accept("Gói phản hồi không hợp lệ: " + data);
                         }
-                    } catch (SocketTimeoutException te) { 
-                        logger.accept("["+i+"/"+samples+"] TIMEOUT"); 
-                    } catch (IOException ioe) { 
-                        logger.accept("["+i+"/"+samples+"] Lỗi IO: " + ioe.getMessage()); 
+                    } catch (SocketTimeoutException te) {
+                        logger.accept("["+i+"/"+samples+"] TIMEOUT");
+                    } catch (IOException ioe) {
+                        logger.accept("["+i+"/"+samples+"] Lỗi IO: " + ioe.getMessage());
                     }
                     try { Thread.sleep(Math.max(0, interval)); } catch (InterruptedException ignored) {}
                 }
-            } catch (Exception e) { 
-                logger.accept("Lỗi: " + e.getMessage()); 
+            } catch (Exception e) {
+                logger.accept("Lỗi: " + e.getMessage());
             }
 
-            // Flush batch & commit lần 1 (để chắc chắn dữ liệu runs + samples đã lưu)
             try {
-                if (psInsertSample != null) {
-                    psInsertSample.executeBatch();
-                }
+                if (psInsertSample != null) psInsertSample.executeBatch();
                 if (cn != null) cn.commit();
                 logger.accept("[DB] Đã commit samples.");
             } catch (Exception e) {
@@ -456,20 +496,18 @@ public class TimeClientGUI extends JFrame {
                 try { if (cn != null) cn.rollback(); } catch (Exception ignore) {}
             }
 
-            if (offsets.isEmpty() || delays.isEmpty()) { 
-                resultPrinter.accept("Không có mẫu hợp lệ. Kiểm tra IP/cổng/firewall/mạng."); 
-                return null; 
+            if (offsets.isEmpty() || delays.isEmpty()) {
+                resultPrinter.accept("Không có mẫu hợp lệ. Kiểm tra IP/cổng/firewall/mạng.");
+                return null;
             }
 
-            // Tính tổng kết
             Collections.sort(offsets);
             double medianOffset = offsets.get(offsets.size()/2);
             double avgDelay = delays.stream().mapToLong(Long::longValue).average().orElse(Double.NaN);
-            long localNow = nowMs(); 
+            long localNow = nowMs();
             long serverNowEst = (long) (localNow + medianOffset);
             offsetConsumer.accept(medianOffset);
 
-            // Update run summary & commit lần 2
             try {
                 if (psUpdateRun != null && runId > 0) {
                     psUpdateRun.setDouble(1, medianOffset);
@@ -478,10 +516,9 @@ public class TimeClientGUI extends JFrame {
                     psUpdateRun.executeUpdate();
                 }
                 if (cn != null) cn.commit();
-                logger.accept("[DB] Đã cập nhật runs(median_offset, avg_delay).");
+                logger.accept("[DB] Đã cập nhật đồng bộ (median_offset, avg_delay).");
             } catch (Exception e) {
-                logger.accept("[DB] UPDATE runs lỗi: " + e.getMessage());
-                // Không rollback lần 2 để giữ dữ liệu samples đã commit ở trên
+                logger.accept("[DB] UPDATE đồng lỗi: " + e.getMessage());
             }
 
             String summary = new StringBuilder()
@@ -492,7 +529,7 @@ public class TimeClientGUI extends JFrame {
                     .append("- Local now (ms):  ").append(localNow).append("\n")
                     .append("- Server est (ms): ").append(serverNowEst).toString();
 
-            resultPrinter.accept(summary); 
+            resultPrinter.accept(summary);
             return null;
         }
 
@@ -506,15 +543,14 @@ public class TimeClientGUI extends JFrame {
         void shutdown(){ running=false; cancel(true); }
     }
 
-
-
-
-    // ===== Biểu đồ (có grid & stroke dày)
+    // ===== Biểu đồ
     private static class PlotPanel extends JPanel {
         private final java.util.List<Integer> xs = new ArrayList<>();
         private final java.util.List<Long> delays = new ArrayList<>();
         private final java.util.List<Double> offsets = new ArrayList<>();
-        void addPoint(int x, long delay, double offset){ SwingUtilities.invokeLater(()->{ xs.add(x); delays.add(delay); offsets.add(offset); repaint(); }); }
+        void addPoint(int x, long delay, double offset){
+            SwingUtilities.invokeLater(()->{ xs.add(x); delays.add(delay); offsets.add(offset); repaint(); });
+        }
         void clearData(){ xs.clear(); delays.clear(); offsets.clear(); repaint(); }
 
         @Override protected void paintComponent(Graphics g) {
@@ -524,10 +560,8 @@ public class TimeClientGUI extends JFrame {
             int w=getWidth(), h=getHeight(); int pad=42;
             int x0=pad, y0=h-pad, x1=w-pad, y1=pad;
 
-            // card bg
             g2.setColor(Color.WHITE); g2.fillRect(x0-10, y1-10, (x1-x0)+20, (y0-y1)+20);
 
-            // grid
             g2.setColor(GRID);
             for (int i=0;i<6;i++){
                 int y = y1 + i*(y0-y1)/5; g2.drawLine(x0,y,x1,y);
@@ -536,7 +570,6 @@ public class TimeClientGUI extends JFrame {
                 int x = x0 + i*(x1-x0)/5; g2.drawLine(x,y1,x,y0);
             }
 
-            // axes frame
             g2.setColor(new Color(200,205,215));
             g2.drawRect(x0, y1, x1-x0, y0-y1);
             g2.setColor(new Color(120,130,140));
@@ -559,7 +592,6 @@ public class TimeClientGUI extends JFrame {
             g2.setColor(new Color(210,210,210));
             g2.drawLine(x0,yZero,x1,yZero);
 
-            // Delay series
             g2.setColor(PRIMARY);
             g2.setStroke(new BasicStroke(2.5f));
             int px=-1, py=-1;
@@ -571,7 +603,6 @@ public class TimeClientGUI extends JFrame {
             }
             g2.drawString("Delay", x1-70, y1+18);
 
-            // Offset series
             g2.setColor(ACCENT);
             g2.setStroke(new BasicStroke(2.5f));
             px=-1; py=-1;
@@ -585,32 +616,76 @@ public class TimeClientGUI extends JFrame {
         }
     }
 
-    // ===== Đồng hồ analog (có số 1–12, hỗ trợ paused)
+    // ===== Đồng hồ analog
     private static class AnalogClockPanel extends JPanel {
         private volatile long currentTimeMs = System.currentTimeMillis();
         private volatile boolean paused = true;
 
-        AnalogClockPanel(){ setPreferredSize(new Dimension(460, 360)); setBackground(SURFACE); }
-        void setCurrentTimeMillis(long t){ currentTimeMs=t; SwingUtilities.invokeLater(this::repaint); }
-        void setPaused(boolean p){ paused=p; SwingUtilities.invokeLater(this::repaint); }
+        private final JLabel digitalLabel;
+
+        AnalogClockPanel(){
+            setPreferredSize(new Dimension(460, 360));
+            setBackground(SURFACE);
+            setLayout(new BorderLayout());
+
+            digitalLabel = new JLabel("--:--:--", SwingConstants.CENTER);
+            digitalLabel.setFont(new Font("Monospaced", Font.BOLD, 28));
+            digitalLabel.setForeground(new Color(0x00FF00));
+            digitalLabel.setOpaque(true);
+            digitalLabel.setBackground(new Color(0x111111));
+            digitalLabel.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+            add(digitalLabel, BorderLayout.SOUTH);
+        }
+
+        void setCurrentTimeMillis(long t){
+            currentTimeMs = t;
+            SwingUtilities.invokeLater(() -> {
+                updateDigitalLabel();
+                repaint();
+            });
+        }
+
+        void setPaused(boolean p){
+            paused = p;
+            SwingUtilities.invokeLater(() -> {
+                if (paused) digitalLabel.setText("--:--:--");
+                else updateDigitalLabel();
+                repaint();
+            });
+        }
+
+        private void updateDigitalLabel() {
+            java.time.Instant instant = java.time.Instant.ofEpochMilli(currentTimeMs);
+            java.time.ZoneId zone = java.time.ZoneId.systemDefault();
+            java.time.format.DateTimeFormatter fmt =
+                    java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss").withZone(zone);
+            digitalLabel.setText(fmt.format(instant));
+        }
 
         @Override protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2=(Graphics2D) g;
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            int w=getWidth(), h=getHeight();
-            int size=Math.min(w, h)-40;
-            int cx=w/2, cy=h/2;
-            int r=size/2;
 
-            // mặt đồng hồ
+            int w = getWidth();
+            int h = getHeight();
+
+            int labelH = (digitalLabel != null && digitalLabel.isShowing()) ? digitalLabel.getHeight() : 0;
+            int top = 0;
+            int availH = Math.max(1, h - labelH);
+            int pad = 20;
+            int size = Math.min(w - 2*pad, availH - 2*pad);
+            size = Math.max(size, 40);
+            int cx = w/2;
+            int cy = top + availH/2;
+            int r  = size/2;
+
             g2.setColor(Color.WHITE);
             g2.fillOval(cx-r, cy-r, 2*r, 2*r);
             g2.setColor(new Color(220,225,235));
             g2.setStroke(new BasicStroke(2));
             g2.drawOval(cx-r, cy-r, 2*r, 2*r);
 
-            // vạch phút/giờ
             for (int i=0;i<60;i++){
                 double ang=Math.toRadians(i*6-90);
                 int r1=r-(i%5==0? 14:7);
@@ -620,14 +695,12 @@ public class TimeClientGUI extends JFrame {
                 g2.drawLine(x1,y1,x2,y2);
             }
 
-            // số 1–12
             g2.setColor(new Color(0x334155));
             float fontSize = Math.max(12f, r * 0.12f);
             Font f = getFont().deriveFont(Font.BOLD, fontSize);
             g2.setFont(f);
             FontMetrics fm = g2.getFontMetrics();
             int numRadius = (int)(r * 0.72);
-
             for (int i=1; i<=12; i++) {
                 double ang = Math.toRadians(i*30 - 90);
                 int tx = cx + (int)(numRadius * Math.cos(ang));
@@ -646,7 +719,6 @@ public class TimeClientGUI extends JFrame {
                 return;
             }
 
-            // kim
             java.util.Calendar cal=java.util.Calendar.getInstance();
             cal.setTimeInMillis(currentTimeMs);
             int ms = cal.get(java.util.Calendar.MILLISECOND);
@@ -670,14 +742,573 @@ public class TimeClientGUI extends JFrame {
             g2.setColor(PRIMARY);
             g2.fillOval(cx-5, cy-5, 10, 10);
         }
+
         private static void drawHand(Graphics2D g2,int cx,int cy,double ang,int len){
-            int x=cx+(int)(Math.cos(ang)*len); int y=cy+(int)(Math.sin(ang)*len); g2.drawLine(cx,cy,x,y);
+            int x=cx+(int)(Math.cos(ang)*len);
+            int y=cy+(int)(Math.sin(ang)*len);
+            g2.drawLine(cx,cy,x,y);
+        }
+    }
+
+    // ======= Báo thức: model & manager =======
+ // ======= Báo thức (lưu DB) =======
+    private static class Alarm {
+        long   id;                 // id trong DB
+        long   atMs;               // mốc thời gian theo "server-est" (epoch ms)
+        String label;
+        boolean repeatDaily;
+        boolean enabled = true;
+        String soundPath;          // (tùy chọn)
+        Alarm(long id, long at, String lb, boolean rep, boolean en, String sp){
+            this.id = id; this.atMs = at; this.label = lb; this.repeatDaily = rep; this.enabled = en; this.soundPath = sp;
+        }
+    }
+
+    private class AlarmManager {
+        private final java.util.List<Alarm> alarms = new java.util.ArrayList<>();
+        private final javax.swing.Timer timer = new javax.swing.Timer(200, e -> tick());
+
+        AlarmManager() {
+            loadFromDb();              // nạp khi khởi động
+            timer.start();
+        }
+
+        // ==== Helpers DB ====
+        private Connection conn() throws Exception { return DbHelper.open(); }
+
+        private Alarm map(ResultSet rs) throws Exception {
+            return new Alarm(
+                rs.getLong("id"),
+                rs.getLong("at_ms_server"),
+                rs.getString("label"),
+                rs.getBoolean("repeat_daily"),
+                rs.getBoolean("enabled"),
+                rs.getString("sound_path")
+            );
+        }
+
+        // ==== Load tất cả alarms từ DB vào RAM
+        private void loadFromDb() {
+            alarms.clear();
+            try (Connection cn = conn();
+                 PreparedStatement ps = cn.prepareStatement("SELECT * FROM alarms ORDER BY at_ms_server ASC")) {
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) alarms.add(map(rs));
+                }
+            } catch (Exception ex) {
+                appendLog("[DB][alarms] load lỗi: " + ex.getMessage());
+            }
+        }
+
+        // ==== CRUD (được AlarmFrame gọi) ====
+        java.util.List<Alarm> list(){ return alarms; }
+
+        void addOneShot(long targetServerEpochMs, String label) {
+            // insert DB
+            long id = -1L;
+            try (Connection cn = conn();
+                 PreparedStatement ps = cn.prepareStatement(
+                         "INSERT INTO alarms(label, at_ms_server, repeat_daily, enabled) VALUES(?,?,0,1)",
+                         Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, label);
+                ps.setLong(2, targetServerEpochMs);
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) { if (rs.next()) id = rs.getLong(1); }
+            } catch (Exception ex) {
+                appendLog("[DB][alarms] insert lỗi: " + ex.getMessage());
+            }
+            if (id > 0) {
+                alarms.add(new Alarm(id, targetServerEpochMs, label, false, true, null));
+            }
+        }
+
+        void addDaily(java.time.LocalTime lt, String label) {
+            long offset = (lastMedianOffsetMs == null) ? 0L : lastMedianOffsetMs.longValue();
+            java.time.ZonedDateTime z = java.time.ZonedDateTime.now().with(lt);
+            if (z.toInstant().toEpochMilli() <= System.currentTimeMillis()) z = z.plusDays(1);
+            long first = z.toInstant().toEpochMilli() + offset;
+
+            long id = -1L;
+            try (Connection cn = conn();
+                 PreparedStatement ps = cn.prepareStatement(
+                         "INSERT INTO alarms(label, at_ms_server, repeat_daily, enabled) VALUES(?,?,1,1)",
+                         Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, label);
+                ps.setLong(2, first);
+                ps.executeUpdate();
+                try (ResultSet rs = ps.getGeneratedKeys()) { if (rs.next()) id = rs.getLong(1); }
+            } catch (Exception ex) {
+                appendLog("[DB][alarms] insert daily lỗi: " + ex.getMessage());
+            }
+            if (id > 0) {
+                alarms.add(new Alarm(id, first, label, true, true, null));
+            }
+        }
+
+        void remove(Alarm a){
+            try (Connection cn = conn();
+                 PreparedStatement ps = cn.prepareStatement("DELETE FROM alarms WHERE id=?")) {
+                ps.setLong(1, a.id);
+                ps.executeUpdate();
+            } catch (Exception ex) {
+                appendLog("[DB][alarms] delete lỗi: " + ex.getMessage());
+            }
+            alarms.remove(a);
+        }
+
+        void toggle(Alarm a){
+            a.enabled = !a.enabled;
+            try (Connection cn = conn();
+                 PreparedStatement ps = cn.prepareStatement("UPDATE alarms SET enabled=? WHERE id=?")) {
+                ps.setBoolean(1, a.enabled);
+                ps.setLong(2, a.id);
+                ps.executeUpdate();
+            } catch (Exception ex) {
+                appendLog("[DB][alarms] toggle lỗi: " + ex.getMessage());
+            }
+        }
+
+        void updateTime(Alarm a, long newAtMs){
+            a.atMs = newAtMs;
+            try (Connection cn = conn();
+                 PreparedStatement ps = cn.prepareStatement("UPDATE alarms SET at_ms_server=? WHERE id=?")) {
+                ps.setLong(1, newAtMs);
+                ps.setLong(2, a.id);
+                ps.executeUpdate();
+            } catch (Exception ex) {
+                appendLog("[DB][alarms] update time lỗi: " + ex.getMessage());
+            }
+        }
+
+        void updateLabel(Alarm a, String newLabel){
+            a.label = newLabel;
+            try (Connection cn = conn();
+                 PreparedStatement ps = cn.prepareStatement("UPDATE alarms SET label=? WHERE id=?")) {
+                ps.setString(1, newLabel);
+                ps.setLong(2, a.id);
+                ps.executeUpdate();
+            } catch (Exception ex) {
+                appendLog("[DB][alarms] update label lỗi: " + ex.getMessage());
+            }
+        }
+
+        void setRepeatDaily(Alarm a, boolean rep){
+            a.repeatDaily = rep;
+            try (Connection cn = conn();
+                 PreparedStatement ps = cn.prepareStatement("UPDATE alarms SET repeat_daily=? WHERE id=?")) {
+                ps.setBoolean(1, rep);
+                ps.setLong(2, a.id);
+                ps.executeUpdate();
+            } catch (Exception ex) {
+                appendLog("[DB][alarms] update repeat lỗi: " + ex.getMessage());
+            }
+        }
+
+        // ==== Loop kiểm tra & kêu chuông ====
+        private void tick() {
+            long now = serverNowMs();
+            java.util.Iterator<Alarm> it = alarms.iterator();
+            while (it.hasNext()) {
+                Alarm a = it.next();
+                if (!a.enabled) continue;
+                if (now >= a.atMs) {
+                    showRingingAlert("Báo thức", a.label);
+
+                    if (a.repeatDaily) {
+                        a.atMs += 86_400_000L; // +1 ngày
+                        try (Connection cn = conn();
+                             PreparedStatement ps = cn.prepareStatement("UPDATE alarms SET at_ms_server=? WHERE id=?")) {
+                            ps.setLong(1, a.atMs);
+                            ps.setLong(2, a.id);
+                            ps.executeUpdate();
+                        } catch (Exception ex) {
+                            appendLog("[DB][alarms] update next daily lỗi: " + ex.getMessage());
+                        }
+                    } else {
+                        // one-shot: xóa khỏi DB + RAM
+                        try (Connection cn = conn();
+                             PreparedStatement ps = cn.prepareStatement("DELETE FROM alarms WHERE id=?")) {
+                            ps.setLong(1, a.id);
+                            ps.executeUpdate();
+                        } catch (Exception ex) {
+                            appendLog("[DB][alarms] delete after ring lỗi: " + ex.getMessage());
+                        }
+                        it.remove();
+                    }
+                }
+            }
+        }
+    }
+
+
+    // Popup nhanh: đặt báo thức HH:mm (local)
+    private void promptAddAlarm() {
+        String s = JOptionPane.showInputDialog(this, "Giờ (HH:mm) theo giờ LOCAL hôm nay?", "08:30");
+        if (s == null || s.isBlank()) return;
+        try {
+            java.time.LocalTime lt = java.time.LocalTime.parse(s.trim());
+            java.time.ZonedDateTime zdt = java.time.ZonedDateTime.now().with(lt);
+            if (zdt.toInstant().toEpochMilli() <= System.currentTimeMillis()) zdt = zdt.plusDays(1);
+            long localTarget = zdt.toInstant().toEpochMilli();
+            long offset = (lastMedianOffsetMs == null) ? 0L : lastMedianOffsetMs.longValue();
+            long targetServerEpoch = localTarget + offset;
+            alarmMgr.addOneShot(targetServerEpoch, "Báo thức " + s + " (LOCAL)");
+            appendLog("Đã đặt báo thức " + s + " (local).");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Định dạng giờ không hợp lệ (HH:mm).");
+        }
+    }
+    // Popup nhanh: hẹn giờ đếm ngược X phút
+    private void promptCountdown() {
+        String s = JOptionPane.showInputDialog(this, "Đếm ngược (phút)?", "5");
+        if (s == null || s.isBlank()) return;
+        try {
+            long mins = Long.parseLong(s.trim());
+            long target = serverNowMs() + mins * 60_000L;
+            alarmMgr.addOneShot(target, "Hết " + mins + " phút");
+            appendLog("Đã hẹn giờ " + mins + " phút.");
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Số phút không hợp lệ.");
         }
     }
 
     @FunctionalInterface private interface TriConsumer<A,B,C>{ void accept(A a,B b,C c); }
     @FunctionalInterface private interface PlotPointConsumer{ void accept(int idx,long delay,double offset); }
-    
 
-    public static void main(String[] args) { SwingUtilities.invokeLater(() -> new TimeClientGUI().setVisible(true)); }
+    // Chuông "reng reng reng" bằng Java Sound (dual-tone, lặp tới khi tắt)
+    private static class Ringer implements Runnable {
+        private volatile boolean running = true;
+        public void stop() { running = false; }
+
+        @Override public void run() {
+            final float SR = 44_100f;
+            AudioFormat fmt = new AudioFormat(SR, 16, 1, true, false);
+            SourceDataLine line = null;
+            try {
+                DataLine.Info info = new DataLine.Info(SourceDataLine.class, fmt);
+                line = (SourceDataLine) AudioSystem.getLine(info);
+                line.open(fmt);
+                line.start();
+
+                // 1 "reng" = 200ms dual-tone (700 & 1000 Hz), nghỉ 90ms → reng reng reng...
+                byte[] tone  = dualTone(SR, 700, 1000, 200);
+                byte[] pause = silence(SR, 90);
+
+                while (running) {
+                    for (int i = 0; i < 3 && running; i++) {
+                        line.write(tone, 0, tone.length);
+                        line.write(pause, 0, pause.length);
+                    }
+                    Thread.sleep(250); // ngắt nhịp, rồi lặp
+                }
+                line.drain();
+            } catch (Exception ex) {
+                // Fallback: nếu không mở được audio line thì dùng beep hệ thống
+                while (running) {
+                    Toolkit.getDefaultToolkit().beep();
+                    try { Thread.sleep(220); } catch (InterruptedException ignored) {}
+                }
+            } finally {
+                if (line != null) {
+                    try { line.stop(); } catch (Exception ignored) {}
+                    try { line.close(); } catch (Exception ignored) {}
+                }
+            }
+        }
+
+        private static byte[] dualTone(float sr, double f1, double f2, int ms) {
+            int n = (int)(ms * sr / 1000);
+            byte[] data = new byte[n * 2]; // 16-bit mono → 2 byte/mẫu
+            for (int i = 0; i < n; i++) {
+                double a = Math.sin(2 * Math.PI * i * f1 / sr);
+                double b = Math.sin(2 * Math.PI * i * f2 / sr);
+                short s = (short)(((a + b) / 2.0) * 32767 * 0.6); // giảm gain tránh rè
+                data[2*i]   = (byte)(s & 0xFF);
+                data[2*i+1] = (byte)((s >>> 8) & 0xFF);
+            }
+            return data;
+        }
+
+        private static byte[] silence(float sr, int ms) {
+            return new byte[(int)(ms * sr / 1000) * 2];
+        }
+    }
+
+    // ==== UI quản lý Báo thức ====
+    private class AlarmFrame extends JFrame {
+        private final JPanel listPanel = new JPanel();
+
+        AlarmFrame() {
+            super("BÁO THỨC");
+            setSize(820, 560);
+            setLocationRelativeTo(TimeClientGUI.this);
+            setLayout(new BorderLayout());
+
+            JLabel title = new JLabel("BÁO THỨC", SwingConstants.CENTER);
+            title.setFont(new Font("SansSerif", Font.BOLD, 28));
+            title.setForeground(new Color(0x1D4ED8));
+            title.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
+            add(title, BorderLayout.NORTH);
+
+            listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+            JScrollPane scroll = new JScrollPane(listPanel);
+            scroll.setBorder(BorderFactory.createEmptyBorder());
+            add(scroll, BorderLayout.CENTER);
+
+            JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            JButton btnAdd = new JButton("+ Thêm");
+            btnAdd.setFont(new Font("SansSerif", Font.BOLD, 14));
+            btnAdd.addActionListener(e -> addAlarmDialog());
+            bottom.add(btnAdd);
+            add(bottom, BorderLayout.SOUTH);
+
+            refreshList();
+        }
+
+        private void refreshList() {
+            listPanel.removeAll();
+            for (Alarm a : alarmMgr.list()) listPanel.add(alarmRow(a));
+            listPanel.add(Box.createVerticalStrut(8));
+            listPanel.revalidate(); listPanel.repaint();
+        }
+
+        private JPanel alarmRow(Alarm a) {
+            JPanel row = new JPanel(new GridBagLayout());
+            row.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createMatteBorder(0,0,1,0, new Color(230,232,238)),
+                    BorderFactory.createEmptyBorder(10,12,10,12)
+            ));
+            GridBagConstraints gc = new GridBagConstraints();
+            gc.insets = new Insets(4,4,4,4);
+            gc.anchor = GridBagConstraints.WEST;
+
+            // Cột giờ
+            gc.gridx=0; gc.gridy=0;
+            JLabel lbTime = new JLabel(formatHHmm(a.atMs));
+            lbTime.setFont(new Font("SansSerif", Font.BOLD, 36));
+            row.add(lbTime, gc);
+
+            // Cột ngày / lặp
+            gc.gridx=1;
+            JLabel lbDate = new JLabel(a.repeatDaily
+                    ? "Hàng ngày"
+                    : java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                    .withZone(java.time.ZoneId.systemDefault())
+                    .format(java.time.Instant.ofEpochMilli(toLocalMs(a.atMs))));
+            lbDate.setFont(new Font("SansSerif", Font.PLAIN, 16));
+            row.add(lbDate, gc);
+
+            // Nhãn nội dung
+            gc.gridx=2;
+            JTextField txtLabel = new JTextField(a.label, 18);
+            txtLabel.setPreferredSize(new Dimension(260,28));
+            txtLabel.addActionListener(e -> { alarmMgr.updateLabel(a, txtLabel.getText().trim()); });
+            row.add(txtLabel, gc);
+
+            // Toggle ON/OFF
+            gc.gridx=3;
+            JButton btnToggle = new JButton(a.enabled ? "ON" : "OFF");
+            styleToggle(btnToggle, a.enabled);
+            btnToggle.addActionListener(e -> {
+                alarmMgr.toggle(a);
+                styleToggle(btnToggle, a.enabled);
+            });
+            row.add(btnToggle, gc);
+
+            // Sửa
+            gc.gridx=4;
+            JButton btnEdit = new JButton("Sửa");
+            btnEdit.addActionListener(e -> editAlarmDialog(a));
+            row.add(btnEdit, gc);
+
+            // Xóa
+            gc.gridx=5;
+            JButton btnDel = new JButton("Xóa");
+            btnDel.addActionListener(e -> {
+                if (JOptionPane.showConfirmDialog(this, "Xóa báo thức này?", "Xác nhận",
+                        JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+                    alarmMgr.remove(a);
+                    refreshList();
+                }
+            });
+            row.add(btnDel, gc);
+
+            return row;
+        }
+
+        private void styleToggle(JButton b, boolean on){
+            b.setForeground(Color.WHITE);
+            b.setBackground(on? new Color(0x16A34A) : new Color(0xEF4444));
+            b.setOpaque(true);
+            b.setBorder(BorderFactory.createEmptyBorder(6,16,6,16));
+            b.setText(on? "ON" : "OFF");
+        }
+
+        // Thêm mới
+        private void addAlarmDialog() {
+            AlarmEditPanel p = new AlarmEditPanel();
+            int ret = JOptionPane.showConfirmDialog(this, p, "Thêm báo thức", JOptionPane.OK_CANCEL_OPTION);
+            if (ret == JOptionPane.OK_OPTION) {
+                long localMs = p.getSelectedDateTimeLocalMs();
+                long targetServer = localMs + ((lastMedianOffsetMs==null)?0L:lastMedianOffsetMs.longValue());
+                if (p.isRepeatDaily()) {
+                    alarmMgr.addDaily(p.getSelectedLocalTime(), p.getLabel());
+                } else {
+                    alarmMgr.addOneShot(targetServer, p.getLabel());
+                }
+                refreshList();
+            }
+        }
+
+        // Sửa
+        private void editAlarmDialog(Alarm a) {
+            AlarmEditPanel p = new AlarmEditPanel(toLocalMs(a.atMs), a.label, a.repeatDaily);
+            int ret = JOptionPane.showConfirmDialog(this, p, "Sửa báo thức", JOptionPane.OK_CANCEL_OPTION);
+            if (ret == JOptionPane.OK_OPTION) {
+                long localMs = p.getSelectedDateTimeLocalMs();
+                long targetServer = localMs + ((lastMedianOffsetMs==null)?0L:lastMedianOffsetMs.longValue());
+                alarmMgr.updateTime(a, targetServer);
+                alarmMgr.updateLabel(a, p.getLabel());
+                alarmMgr.setRepeatDaily(a, p.isRepeatDaily());
+                a.enabled = true;
+                refreshList();
+            }
+        }
+
+        // Panel nhập/đổi giờ + nhãn + lặp ngày
+     // Panel nhập/đổi giờ + nhãn + lặp ngày
+        private class AlarmEditPanel extends JPanel {
+            private final JSpinner spDateTime;
+            private final JTextField tfLabel = new JTextField("Báo thức", 20);
+            private final JCheckBox cbDaily = new JCheckBox("Lặp hàng ngày");
+
+            AlarmEditPanel() { this(System.currentTimeMillis() + 60_000, "Báo thức", false); }
+
+            AlarmEditPanel(long localEpochMs, String label, boolean daily) {
+                setLayout(new GridBagLayout());
+                GridBagConstraints gc = new GridBagConstraints();
+                gc.insets = new Insets(6,6,6,6);
+                gc.fill = GridBagConstraints.HORIZONTAL;
+
+                // Spinner DateTime (local)
+                java.util.Date d = new java.util.Date(localEpochMs);
+                spDateTime = new JSpinner(new SpinnerDateModel(d, null, null, java.util.Calendar.MINUTE));
+                JSpinner.DateEditor ed = new JSpinner.DateEditor(spDateTime, "HH:mm dd/MM/yyyy");
+                spDateTime.setEditor(ed);
+
+                tfLabel.setText(label);
+                cbDaily.setSelected(daily);
+
+                gc.gridx=0; gc.gridy=0; add(new JLabel("Thời điểm (local):"), gc);
+                gc.gridx=1; gc.gridy=0; add(spDateTime, gc);
+                gc.gridx=0; gc.gridy=1; add(new JLabel("Nhãn:"), gc);
+                gc.gridx=1; gc.gridy=1; add(tfLabel, gc);
+                gc.gridx=1; gc.gridy=2; add(cbDaily, gc);
+            }
+
+            long getSelectedDateTimeLocalMs() { return ((java.util.Date) spDateTime.getValue()).getTime(); }
+            String getLabel() { return tfLabel.getText().trim(); }
+            boolean isRepeatDaily() { return cbDaily.isSelected(); }
+
+            // Lấy LocalTime (chỉ giờ:phút) từ spinner để dùng cho addDaily()
+            java.time.LocalTime getSelectedLocalTime() {
+                java.util.Date d = (java.util.Date) spDateTime.getValue();
+                return d.toInstant()
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toLocalTime();
+            }
+        }
+
+
+        // utils
+        private String formatHHmm(long serverEpochMs){
+            long local = toLocalMs(serverEpochMs);
+            return java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                    .withZone(java.time.ZoneId.systemDefault())
+                    .format(java.time.Instant.ofEpochMilli(local));
+        }
+        private long toLocalMs(long serverEpochMs){
+            long off = (lastMedianOffsetMs==null)?0L:lastMedianOffsetMs.longValue();
+            return serverEpochMs - off;
+        }
+    }
+
+    // ==== UI Bấm giờ (Stopwatch) ====
+    private class StopwatchFrame extends JFrame {
+        private final JLabel lbl = new JLabel("00:00:00,00", SwingConstants.CENTER);
+        private final DefaultTableModel lapsModel =
+                new DefaultTableModel(new Object[]{"Lượt", "Thời gian"}, 0) {
+                    @Override public boolean isCellEditable(int r,int c){return false;}
+                };
+        private final javax.swing.Timer tmr;
+        private long startNano = 0L;
+        private boolean running = false;
+
+        StopwatchFrame() {
+            super("BẤM GIỜ");
+            setSize(820, 520);
+            setLocationRelativeTo(TimeClientGUI.this);
+            setLayout(new BorderLayout());
+
+            JLabel title = new JLabel("BẤM GIỜ", SwingConstants.CENTER);
+            title.setFont(new Font("SansSerif", Font.BOLD, 28));
+            title.setForeground(new Color(0x065F46));
+            title.setBorder(BorderFactory.createEmptyBorder(8,8,8,8));
+            add(title, BorderLayout.NORTH);
+
+            lbl.setFont(new Font("SansSerif", Font.BOLD, 72));
+            lbl.setForeground(new Color(0x1E3A8A));
+            add(lbl, BorderLayout.CENTER);
+
+            JTable tbl = new JTable(lapsModel);
+            JScrollPane sp = new JScrollPane(tbl);
+            sp.setPreferredSize(new Dimension(320, 100));
+
+            JPanel right = new JPanel(new BorderLayout());
+            right.add(sp, BorderLayout.CENTER);
+            add(right, BorderLayout.EAST);
+
+            JButton btnStart = new JButton("Start");
+            JButton btnLap   = new JButton("Lap");
+            JButton btnStop  = new JButton("Stop");
+
+            btnStart.setBackground(new Color(0x10B981));
+            btnStart.setForeground(Color.WHITE);
+            btnStop.setBackground(new Color(0xF59E0B));
+            btnStop.setForeground(Color.WHITE);
+            btnLap.setBackground(new Color(0x2563EB));
+            btnLap.setForeground(Color.WHITE);
+
+            JPanel bottom = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 12));
+            bottom.add(btnStart); bottom.add(btnLap); bottom.add(btnStop);
+            add(bottom, BorderLayout.SOUTH);
+
+            tmr = new javax.swing.Timer(30, e -> updateLabel());
+
+            btnStart.addActionListener(e -> {
+                if (!running) { running = true; startNano = System.nanoTime(); tmr.start(); }
+            });
+            btnStop.addActionListener(e -> {
+                if (running) { running = false; tmr.stop(); }
+            });
+            btnLap.addActionListener(e -> {
+                String time = lbl.getText();
+                lapsModel.addRow(new Object[]{"Lượt " + (lapsModel.getRowCount()+1), time});
+            });
+        }
+
+        private void updateLabel() {
+            long ns = System.nanoTime() - startNano;
+            long ms = ns / 1_000_000L;
+            long h = ms / 3_600_000L;
+            long m = (ms % 3_600_000L) / 60_000L;
+            long s = (ms % 60_000L) / 1000L;
+            long cs = (ms % 1000L) / 10L; // centiseconds
+            lbl.setText(String.format("%02d:%02d:%02d,%02d", h, m, s, cs));
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new TimeClientGUI().setVisible(true));
+    }
 }

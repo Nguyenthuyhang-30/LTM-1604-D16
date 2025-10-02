@@ -1,6 +1,10 @@
 package timeUDP;
 
 import javax.swing.*;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.Style;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 import java.awt.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -22,9 +26,9 @@ public class TimeServerGUI extends JFrame {
         } catch (Exception ignored) {}
     }
 
-    private JTextArea logArea;
+    private JTextPane logArea;
     private JButton btnStart, btnStop;
-    private JTextField txtPort, txtNtpHost, txtRefresh;
+    private JTextField txtPort, txtNtpHost, txtRefresh; // <- có Refresh
     private JComboBox<String> cbSource;
     private ServerWorker worker;
 
@@ -36,12 +40,12 @@ public class TimeServerGUI extends JFrame {
     private AnalogClockPanel analogPanel;
 
     public TimeServerGUI() {
-        super("UDP Time Server (Internet Time)");
+        super("UDP Time Server");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(760, 520);
         setLocationRelativeTo(null);
 
-     // ===== Header gradient
+        // ===== Header gradient
         JPanel header = new GradientPanel(PRIMARY, PRIMARY_DK);
         header.setLayout(new GridBagLayout());
 
@@ -53,10 +57,9 @@ public class TimeServerGUI extends JFrame {
         txtPort    = field("5005", 6);
         cbSource   = new JComboBox<>(new String[]{"HTTP Date", "NTP"});
         txtNtpHost = field("time.google.com", 14);
-        txtRefresh = field("5000", 6); // ms
-
-        btnStart = pill("Start", new Color(0x16A34A));
-        btnStop  = pill("Stop",  new Color(0xEF4444));
+        txtRefresh = field("60000", 6); // <- mặc định 60 giây
+        btnStart = pill("Bắt đầu", new Color(0x16A34A));
+        btnStop  = pill("Dừng",  new Color(0xEF4444));
         btnStop.setEnabled(false);
 
         // Panel controls 1 hàng ngang
@@ -69,13 +72,12 @@ public class TimeServerGUI extends JFrame {
         controls.add(Box.createRigidArea(new Dimension(10,0)));
         controls.add(labelW("NTP host:"));    controls.add(txtNtpHost);
         controls.add(Box.createRigidArea(new Dimension(10,0)));
-        controls.add(labelW("Refresh(ms):")); controls.add(txtRefresh);
+        controls.add(labelW("Refresh(ms):")); controls.add(txtRefresh); // <- thêm vào UI
         controls.add(Box.createRigidArea(new Dimension(10,0)));
         controls.add(btnStart);
         controls.add(Box.createRigidArea(new Dimension(10,0)));
         controls.add(btnStop);
 
-        // Bọc trong JScrollPane ngang để không mất nút khi thu nhỏ
         JScrollPane ctrlScroll = new JScrollPane(
                 controls,
                 ScrollPaneConstants.VERTICAL_SCROLLBAR_NEVER,
@@ -86,8 +88,7 @@ public class TimeServerGUI extends JFrame {
         ctrlScroll.setOpaque(false);
         ctrlScroll.getHorizontalScrollBar().setUnitIncrement(24);
         ctrlScroll.setPreferredSize(new Dimension(10, controls.getPreferredSize().height + 12));
-
-        // Gắn vào header với GridBagConstraints
+        
         GridBagConstraints gc = new GridBagConstraints();
         gc.gridx = 0; gc.gridy = 0;
         gc.insets = new Insets(8,16,0,16);
@@ -102,7 +103,7 @@ public class TimeServerGUI extends JFrame {
         gc.weightx = 1.0;
         header.add(ctrlScroll, gc);
 
-        logArea = new JTextArea();
+        logArea = new JTextPane();
         logArea.setEditable(false);
         logArea.setFont(new Font("Monospaced", Font.PLAIN, 13));
         JScrollPane scroll = new JScrollPane(logArea);
@@ -110,23 +111,18 @@ public class TimeServerGUI extends JFrame {
         add(header, BorderLayout.NORTH);
         add(scroll, BorderLayout.CENTER);
 
-        // 🔸 Đồng hồ analog ở cạnh phải
         analogPanel = new AnalogClockPanel();
         analogPanel.setPreferredSize(new Dimension(260, 260));
         add(analogPanel, BorderLayout.EAST);
 
-        // ==== đồng hồ digital ở dưới cùng
         lblClock = new JLabel("00:00:00", SwingConstants.CENTER);
         lblClock.setFont(new Font("Monospaced", Font.BOLD, 24));
         lblClock.setOpaque(true);
         lblClock.setBackground(Color.BLACK);
         lblClock.setForeground(Color.GREEN);
         add(lblClock, BorderLayout.SOUTH);
-
-        // Timer cập nhật đồng hồ mỗi giây
         clockTimer = new javax.swing.Timer(1000, e -> updateClock());
         clockTimer.start();
-
         btnStart.addActionListener(e -> startServer());
         btnStop.addActionListener(e -> stopServer());
     }
@@ -149,9 +145,23 @@ public class TimeServerGUI extends JFrame {
     }
     private void appendLog(String s) {
         SwingUtilities.invokeLater(() -> {
-            logArea.append(s + "\n");
+            StyledDocument doc = logArea.getStyledDocument();
+            Style style = logArea.addStyle("log-style", null);
+            StyleConstants.setForeground(style, pickLogColor(s));
+            try {
+                doc.insertString(doc.getLength(), s + "\n", style);
+            } catch (BadLocationException ignored) {}
             logArea.setCaretPosition(logArea.getDocument().getLength());
         });
+    }
+    private Color pickLogColor(String s) {
+        String u = s.toUpperCase();
+        if (u.contains("[ERR]") || u.contains("ERROR") || u.contains("EXCEPTION")) return new Color(0xEF4444); // đỏ
+        if (u.contains("WARN") || u.contains("TIMEOUT"))                            return new Color(0xF59E0B); // cam
+        if (u.contains("[SYNC]") && (u.contains("OK") || u.contains("SUCCESS")))   return new Color(0x16A34A); // xanh lá
+        if (u.startsWith("DISCOVER") || u.contains("HERE "))                        return new Color(0x0EA5E9); // xanh dương
+        if (u.startsWith("REQ ") || u.startsWith("RESP "))                          return new Color(0x6B7280); // xám
+        return new Color(0x111827); // mặc định
     }
 
     // ======== cập nhật đồng hồ
@@ -164,7 +174,6 @@ public class TimeServerGUI extends JFrame {
                 .toLocalTime();
         lblClock.setText(t.truncatedTo(java.time.temporal.ChronoUnit.SECONDS).toString());
 
-        // cập nhật analog
         if (analogPanel != null) {
             analogPanel.setNow(now);
             analogPanel.repaint();
@@ -198,7 +207,11 @@ public class TimeServerGUI extends JFrame {
     }
 
     private void stopServer() {
-        if (worker != null) worker.shutdown();
+        if (worker != null) {
+            worker.shutdown();
+            if (worker.engine != null) worker.engine.shutdown();
+            worker = null;
+        }
         btnStart.setEnabled(true);
         btnStop.setEnabled(false);
         appendLog("[SERVER] Đã dừng.");
@@ -236,9 +249,8 @@ public class TimeServerGUI extends JFrame {
                         continue;
                     }
 
-                    // === CÁCH 2: lấy giờ Internet qua TimeEngine (đã cache để trả lời nhanh)
-                    long t1 = engine.nowMs();   // server receive (Internet time)
-                    long t2 = engine.nowMs();   // server transmit (Internet time)
+                    long t1 = engine.nowMs();
+                    long t2 = engine.nowMs();
                     String resp = "RESP " + t1 + " " + t2;
                     socket.send(new DatagramPacket(resp.getBytes(StandardCharsets.UTF_8), resp.length(), cliAddr, cliPort));
 
@@ -282,36 +294,42 @@ public class TimeServerGUI extends JFrame {
         private final long refreshIntervalMs;
         private final java.util.function.Consumer<String> logger;
 
-        private volatile long baseNetMs = 0L;     // mốc thời gian Internet (epoch ms)
-        private volatile long baseMonoNs = 0L;    // mốc nanoTime tương ứng
+        private volatile long baseNetMs = 0L;
+        private volatile long baseMonoNs = 0L;
         private volatile long lastSyncWallMs = 0L;
+
+        private volatile boolean active = true;
 
         TimeEngine(Mode mode, String ntpHost, long refreshIntervalMs, java.util.function.Consumer<String> logger) {
             this.mode = mode; this.ntpHost = ntpHost; this.refreshIntervalMs = refreshIntervalMs; this.logger = logger;
         }
 
+        void shutdown() { active = false; }
+
         /** gọi lúc start để có mốc ban đầu */
         void syncOnce() {
+            if (!active) return;
             try {
                 long net = (mode == Mode.HTTP) ? fetchInternetTimeHttpMs() : fetchInternetTimeNtpMs(ntpHost);
                 baseNetMs = net;
                 baseMonoNs = System.nanoTime();
                 lastSyncWallMs = System.currentTimeMillis();
-                logger.accept("[SYNC] " + mode + " ok: " + net + " ms");
+                if (active) logger.accept("[SYNC] " + mode + " ok: " + net + " ms");
             } catch (Exception e) {
-                logger.accept("[SYNC] " + mode + " lỗi: " + e.getMessage() + " → dùng mốc local tạm thời");
+                if (active) logger.accept("[SYNC] " + mode + " lỗi: " + e.getMessage() + " → dùng mốc local tạm thời");
                 baseNetMs = System.currentTimeMillis();
                 baseMonoNs = System.nanoTime();
                 lastSyncWallMs = System.currentTimeMillis();
             }
         }
 
-        /** trả về “giờ Internet hiện tại” rất nhanh nhờ nội suy bằng nanoTime */
+        /** trả về “giờ Internet hiện tại” nhanh nhờ nội suy bằng nanoTime + tự re-sync theo refreshIntervalMs */
         long nowMs() {
+            if (!active) return System.currentTimeMillis();
+
             long wall = System.currentTimeMillis();
             if (baseNetMs == 0 || wall - lastSyncWallMs > refreshIntervalMs) {
-                // cố gắng làm mới (không chặn quá lâu)
-                new Thread(this::syncOnce).start();
+                if (active) new Thread(this::syncOnce, "TimeSync").start();
             }
             long deltaMs = (System.nanoTime() - baseMonoNs) / 1_000_000L;
             return baseNetMs + deltaMs;
@@ -319,7 +337,7 @@ public class TimeServerGUI extends JFrame {
 
         // === HTTP: đọc header Date
         static long fetchInternetTimeHttpMs() throws Exception {
-            URL url = new URL("https://www.google.com"); // nhanh & ổn định
+            URL url = new URL("https://www.google.com");
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("HEAD");
             conn.setConnectTimeout(1500);
@@ -374,7 +392,6 @@ public class TimeServerGUI extends JFrame {
     // ======== Analog clock panel (có số & vạch phút/giờ)
     private static class AnalogClockPanel extends JPanel {
         private long nowMs = System.currentTimeMillis();
-
         void setNow(long ms) { this.nowMs = ms; }
 
         @Override protected void paintComponent(Graphics g) {

@@ -12,7 +12,6 @@ public class DbHelper {
     private static final String USER = "root";         
     private static final String PASS = "Hang.00000"; 
 
-    // (tuỳ chọn) ép load driver, hữu ích nếu IDE không tự nhận
     static {
         try { 
             Class.forName("com.mysql.cj.jdbc.Driver"); 
@@ -21,7 +20,6 @@ public class DbHelper {
         }
     }
 
-    // Mở kết nối tới MySQL
     public static Connection open() throws SQLException {
         return DriverManager.getConnection(URL, USER, PASS);
     }
