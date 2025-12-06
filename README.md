@@ -63,19 +63,21 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 <p align="center"><i>Hình 1: Kiến trúc hệ thống </i></p>
 
 - Cấu trúc thư mục 
+```text
 📦 udp-time-sync
- ┣ 📂 src
- │  ┣ 📂 client
- │  ┃ ┗ TimeClientGUI.java
- │  ┣ 📂 server
- │  ┃ ┗ TimeServerGUI.java
- │  ┣ DbHelper.java
- ┣ 📂 docs
- ┃ ┣ Client.png
- ┃ ┣ Server.png
- ┃ ┗ bieudo.png
- ┣ README.md
- ┗ .gitignore
+┣ 📂 src
+│ ┣ 📂 client
+│ ┃ ┗ TimeClientGUI.java
+│ ┣ 📂 server
+│ ┃ ┗ TimeServerGUI.java
+│ ┣ DbHelper.java
+┣ 📂 docs
+┃ ┣ Client.png
+┃ ┣ Server.png
+┃ ┗ bieudo.png
+┣ README.md
+┗ .gitignore
+```
 
 ## 2. Công nghệ sử dụng
 
