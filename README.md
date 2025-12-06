@@ -53,31 +53,30 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 [![Eclipse](https://img.shields.io/badge/Eclipse-2C2255?style=for-the-badge&logo=eclipseide&logoColor=white)](https://www.eclipse.org/) 
 [![NetBeans](https://img.shields.io/badge/NetBeans-1B6AC6?style=for-the-badge&logo=apachenetbeanside&logoColor=white)](https://netbeans.apache.org/) 
 
+- ✨ Features
 
-## 3.✨ Features
+    + Đồng bộ thời gian Client–Server bằng UDP.
 
-    - Đồng bộ thời gian Client–Server bằng UDP.
+    + Hỗ trợ nhiều nguồn thời gian: HTTP Date, NTP Server.
 
-    - Hỗ trợ nhiều nguồn thời gian: HTTP Date, NTP Server.
+    + Tự động tính Delay, Offset, median offset.
 
-    - Tự động tính Delay, Offset, median offset.
+    + Hiển thị biểu đồ trực quan theo thời gian thực.
 
-    - Hiển thị biểu đồ trực quan theo thời gian thực.
+    + Xuất dữ liệu sang CSV.
 
-    - Xuất dữ liệu sang CSV.
+    + Server hỗ trợ log theo thời gian thực.
 
-    - Server hỗ trợ log theo thời gian thực.
+    + Giao diện trực quan với Java Swing + Nimbus L&F.
 
-    - Giao diện trực quan với Java Swing + Nimbus L&F.
-
-## 4. Kiến trúc hệ thống (Architecture)
+- Kiến trúc hệ thống (Architecture)
 <p align="center">
   <img src="./docs/IMAGE_LTM.png" alt="Hình 1: Kiến trúc hệ thống " width="600"/>
 </p>
 
 <p align="center"><i>Hình 1: Kiến trúc hệ thống </i></p>
 
-## 5. Cấu trúc thư mục 
+- Cấu trúc thư mục 
 📦 udp-time-sync
  ┣ 📂 src
  │  ┣ 📂 client
@@ -92,7 +91,7 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
  ┣ README.md
  ┗ .gitignore
 
-## 6. Một số hình ảnh của hệ thống
+## 3. Một số hình ảnh của hệ thống
  .
 <p align="center">
   <img src="./docs/Client.png" alt="Hình 2: 🖥️ Giao diện Client" width="600"/>
