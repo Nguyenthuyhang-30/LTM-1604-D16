@@ -54,15 +54,51 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 [![NetBeans](https://img.shields.io/badge/NetBeans-1B6AC6?style=for-the-badge&logo=apachenetbeanside&logoColor=white)](https://netbeans.apache.org/) 
 
 
+## 3.✨ Features
 
-## 3. Một số hình ảnh của hệ thống
- 
+    - Đồng bộ thời gian Client–Server bằng UDP.
 
+    - Hỗ trợ nhiều nguồn thời gian: HTTP Date, NTP Server.
+
+    - Tự động tính Delay, Offset, median offset.
+
+    - Hiển thị biểu đồ trực quan theo thời gian thực.
+
+    - Xuất dữ liệu sang CSV.
+
+    - Server hỗ trợ log theo thời gian thực.
+
+    - Giao diện trực quan với Java Swing + Nimbus L&F.
+
+## 4. Kiến trúc hệ thống (Architecture)
 <p align="center">
-  <img src="./docs/Client.png" alt="Hình 1: 🖥️ Giao diện Client" width="600"/>
+  <img src="./docs/IMAGE_LTM.png" alt="Hình 1: Kiến trúc hệ thống " width="600"/>
 </p>
 
-<p align="center"><i>Hình 1: 🖥️ Giao diện Client</i></p>
+<p align="center"><i>Hình 1: Kiến trúc hệ thống </i></p>
+
+## 5. Cấu trúc thư mục 
+📦 udp-time-sync
+ ┣ 📂 src
+ │  ┣ 📂 client
+ │  ┃ ┗ TimeClientGUI.java
+ │  ┣ 📂 server
+ │  ┃ ┗ TimeServerGUI.java
+ │  ┣ DbHelper.java
+ ┣ 📂 docs
+ ┃ ┣ Client.png
+ ┃ ┣ Server.png
+ ┃ ┗ bieudo.png
+ ┣ README.md
+ ┗ .gitignore
+
+## 6. Một số hình ảnh của hệ thống
+ .
+<p align="center">
+  <img src="./docs/Client.png" alt="Hình 2: 🖥️ Giao diện Client" width="600"/>
+</p>
+
+<p align="center"><i>Hình 2: 🖥️ Giao diện Client</i></p>
 
 - Nhập **Server IP / Port** để kết nối.  
 - Thiết lập **Samples / Interval / Timeout**.  
@@ -73,10 +109,10 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
 
 <p align="center">
-  <img src="./docs/Server.png" alt="Hình 2: 🖥️ Giao diện Server" width="600"/>
+  <img src="./docs/Server.png" alt="Hình 3: 🖥️ Giao diện Server" width="600"/>
 </p>
 
-<p align="center"><i>Hình 2: 🖥️ Giao diện Server</i></p>
+<p align="center"><i>Hình 3: 🖥️ Giao diện Server</i></p>
 
 - Cấu hình **Port**, chọn **Nguồn thời gian (HTTP Date / NTP)**.  
 - Nhập **NTP host** (ví dụ: time.google.com).  
@@ -89,10 +125,10 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
 
 <p align="center">
-  <img src="./docs/bieudo.png" alt="Hình 3: 📊 Biểu đồ offset " width="600"/>
+  <img src="./docs/bieudo.png" alt="Hình 4: 📊 Biểu đồ offset " width="600"/>
 </p>
 
-<p align="center"><i>Hình 3: 📊 Biểu đồ offset </i></p>
+<p align="center"><i>Hình 4: 📊 Biểu đồ offset </i></p>
 
 - Hiển thị danh sách các mẫu đo **Delay** và **Offset**.  
 - Biểu đồ trực quan thể hiện sự thay đổi **Delay** (màu xanh dương) và **Offset** (màu xanh lá).  
@@ -102,10 +138,10 @@ Hệ thống đồng bộ thời gian dựa trên giao thức UDP được xây 
 
 
 <p align="center">
-  <img src="./docs/udp_csv.png" alt="Hình 4: 📂 Xuất file CSV " width="600"/>
+  <img src="./docs/udp_csv.png" alt="Hình 5: 📂 Xuất file CSV " width="600"/>
 </p>
 
-<p align="center"><i>Hình 4: 📂 Xuất file CSV </i></p>
+<p align="center"><i>Hình 5: 📂 Xuất file CSV </i></p>
 
 - Client hỗ trợ **xuất dữ liệu đo** ra file CSV.  
 - File gồm các cột:  
@@ -165,6 +201,10 @@ Contact me:
     Khoa: Công nghệ thông tin - Trường Đại học Đại Nam 
 
     email: nguyenthuyhang.qc2004@gmail.com
+
+    
+This project is licensed under the MIT License.
+
 
 
     
